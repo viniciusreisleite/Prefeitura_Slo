@@ -41,10 +41,16 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Sincroniza com qualquer alteração remota recente
+          git fetch origin main
+          git rebase -X theirs origin/main || git rebase --abort || true
+          
+          # Adiciona os arquivos gerados
           git add video_*.mp4 data.json index.html last_video.txt || true
+          
           if ! git diff-index --quiet HEAD; then
             git commit -m "Atualizados os 8 vídeos e dados da TV [skip ci]"
-            git pull --rebase origin main
             git push origin main
           fi
 
