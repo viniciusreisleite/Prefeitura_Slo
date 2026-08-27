@@ -5,6 +5,7 @@ import time
 from playwright.sync_api import sync_playwright
 
 def main():
+    # 1. Salvar os cookies no formato Netscape
     cookies_raw = os.environ.get("INSTAGRAM_COOKIES", "")
     cookie_file = "cookies.txt"
     with open(cookie_file, "w", encoding="utf-8") as f:
@@ -29,8 +30,8 @@ def main():
 
     username = "prefeituraslmg"
     reel_url = None
-    post_caption = ""
 
+    # 2. Localizar o link do post mais recente
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -52,23 +53,11 @@ def main():
             if first_reel.count() > 0:
                 href = first_reel.get_attribute("href")
                 reel_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
-                first_reel.click()
-                time.sleep(4)
-                
-                # Extrai a legenda do post
-                caption_elem = page.locator("h1, div[role='dialog'] span, article span").first
-                if caption_elem.count() > 0:
-                    post_caption = caption_elem.inner_text()
             else:
                 first_post = page.locator("a[href*='/p/']").first
                 if first_post.count() > 0:
                     href = first_post.get_attribute("href")
                     reel_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
-                    first_post.click()
-                    time.sleep(4)
-                    caption_elem = page.locator("h1, article span").first
-                    if caption_elem.count() > 0:
-                        post_caption = caption_elem.inner_text()
 
         except Exception as e:
             print(f"Erro na navegação: {e}")
@@ -76,10 +65,30 @@ def main():
         browser.close()
 
     if not reel_url:
-        print("Nenhum post encontrado.")
+        print("Nenhum post/reel foi identificado.")
         return
 
-    # Baixa o vídeo e gera o arquivo latest.mp4 fixo para o player web
+    print(f"Post detectado: {reel_url}")
+
+    # 3. Obter a descrição/legenda original diretamente via yt-dlp
+    post_caption = ""
+    try:
+        desc_cmd = [
+            "yt-dlp",
+            "--cookies", cookie_file,
+            "--no-check-certificates",
+            "--dump-json",
+            reel_url
+        ]
+        info_res = subprocess.run(desc_cmd, capture_output=True, text=True)
+        if info_res.stdout:
+            info_json = json.loads(info_res.stdout)
+            post_caption = info_json.get("description") or info_json.get("title") or ""
+            print(f"Legenda extraída com sucesso! ({len(post_caption)} caracteres)")
+    except Exception as e:
+        print(f"Erro ao extrair legenda via metadata: {e}")
+
+    # 4. Baixar o vídeo e mesclar no latest.mp4
     output_filename = "latest.mp4"
     print("Baixando vídeo e mesclando com ffmpeg...")
 
@@ -95,11 +104,11 @@ def main():
     ]
     subprocess.run(cmd, capture_output=True, text=True)
 
-    # Salva os dados do post para o painel de TV
+    # 5. Salvar os dados para a TV
     post_data = {
         "url": reel_url,
         "username": username,
-        "caption": post_caption if post_caption else "Confira as últimas novidades da Prefeitura Municipal de São Lourenço.",
+        "caption": post_caption.strip() if post_caption else "Confira as últimas novidades da Prefeitura Municipal de São Lourenço.",
         "updated_at": time.strftime("%d/%m/%Y às %H:%M")
     }
 
@@ -109,7 +118,7 @@ def main():
     with open("last_video.txt", "w", encoding="utf-8") as f:
         f.write(reel_url)
 
-    print("Vídeo e dados preparados para a TV!")
+    print("Painel atualizado com vídeo e texto originais!")
 
 if __name__ == "__main__":
     main()
