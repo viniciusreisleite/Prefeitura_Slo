@@ -1,10 +1,10 @@
 import os
+import json
 import subprocess
 import time
 from playwright.sync_api import sync_playwright
 
 def main():
-    # 1. Salvar os cookies no formato Netscape
     cookies_raw = os.environ.get("INSTAGRAM_COOKIES", "")
     cookie_file = "cookies.txt"
     with open(cookie_file, "w", encoding="utf-8") as f:
@@ -29,8 +29,8 @@ def main():
 
     username = "prefeituraslmg"
     reel_url = None
+    post_caption = ""
 
-    # 2. Abrir Instagram e localizar o Reel mais recente
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -40,11 +40,10 @@ def main():
         
         if playwright_cookies:
             context.add_cookies(playwright_cookies)
-            print(f"Injetados {len(playwright_cookies)} cookies de autenticação.")
 
         page = context.new_page()
-
         print(f"Acessando perfil de @{username}...")
+
         try:
             page.goto(f"https://www.instagram.com/{username}/reels/", wait_until="domcontentloaded", timeout=45000)
             time.sleep(5)
@@ -53,37 +52,36 @@ def main():
             if first_reel.count() > 0:
                 href = first_reel.get_attribute("href")
                 reel_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
-                print(f"Reel mais recente encontrado: {reel_url}")
+                first_reel.click()
+                time.sleep(4)
+                
+                # Extrai a legenda do post
+                caption_elem = page.locator("h1, div[role='dialog'] span, article span").first
+                if caption_elem.count() > 0:
+                    post_caption = caption_elem.inner_text()
             else:
                 first_post = page.locator("a[href*='/p/']").first
                 if first_post.count() > 0:
                     href = first_post.get_attribute("href")
                     reel_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
-                    print(f"Post com vídeo encontrado: {reel_url}")
+                    first_post.click()
+                    time.sleep(4)
+                    caption_elem = page.locator("h1, article span").first
+                    if caption_elem.count() > 0:
+                        post_caption = caption_elem.inner_text()
 
         except Exception as e:
-            print(f"Erro durante a navegação: {e}")
+            print(f"Erro na navegação: {e}")
 
         browser.close()
 
     if not reel_url:
-        print("Nenhum post/reel foi identificado.")
+        print("Nenhum post encontrado.")
         return
 
-    # 3. Verificar se o vídeo já foi baixado anteriormente
-    last_video_file = "last_video.txt"
-    last_saved_url = ""
-    if os.path.exists(last_video_file):
-        with open(last_video_file, "r", encoding="utf-8") as f:
-            last_saved_url = f.read().strip()
-
-    if reel_url == last_saved_url:
-        print(f"O vídeo {reel_url} já foi baixado anteriormente. Nada a fazer.")
-        return
-
-    # 4. Fazer o download e juntar áudio/vídeo com yt-dlp + ffmpeg
-    output_filename = f"video_{int(time.time())}.mp4"
-    print("Novo vídeo detectado! Baixando com yt-dlp e mesclando com ffmpeg...")
+    # Baixa o vídeo e gera o arquivo latest.mp4 fixo para o player web
+    output_filename = "latest.mp4"
+    print("Baixando vídeo e mesclando com ffmpeg...")
 
     cmd = [
         "yt-dlp",
@@ -92,22 +90,26 @@ def main():
         "--merge-output-format", "mp4",
         "-f", "bestvideo+bestaudio/best",
         "-o", output_filename,
+        "--force-overwrites",
         reel_url
     ]
+    subprocess.run(cmd, capture_output=True, text=True)
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    print(result.stdout)
+    # Salva os dados do post para o painel de TV
+    post_data = {
+        "url": reel_url,
+        "username": username,
+        "caption": post_caption if post_caption else "Confira as últimas novidades da Prefeitura Municipal de São Lourenço.",
+        "updated_at": time.strftime("%d/%m/%Y às %H:%M")
+    }
 
-    if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
-        size_mb = os.path.getsize(output_filename) / (1024 * 1024)
-        print(f"Sucesso! Vídeo completo com áudio salvo: {output_filename} ({size_mb:.2f} MB)")
-        
-        # Grava o link do vídeo processado
-        with open(last_video_file, "w", encoding="utf-8") as f:
-            f.write(reel_url)
-    else:
-        print("Erro: O yt-dlp não conseguiu gerar o arquivo final.")
-        print(result.stderr)
+    with open("data.json", "w", encoding="utf-8") as f:
+        json.dump(post_data, f, ensure_ascii=False, indent=2)
+
+    with open("last_video.txt", "w", encoding="utf-8") as f:
+        f.write(reel_url)
+
+    print("Vídeo e dados preparados para a TV!")
 
 if __name__ == "__main__":
     main()
