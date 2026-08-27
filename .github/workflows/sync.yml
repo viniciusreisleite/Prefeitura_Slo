@@ -2,7 +2,9 @@ name: Sincronizar Instagram com Drive
 
 on:
   schedule:
+    # Executa a cada 6 horas automaticamente
     - cron: '0 */6 * * *'
+  # Permite rodar manualmente a qualquer momento pelo painel do GitHub
   workflow_dispatch:
 
 jobs:
@@ -20,7 +22,7 @@ jobs:
 
       - name: Instalar dependências
         run: |
-          pip install requests beautifulsoup4 google-api-python-client google-auth
+          pip install curl_cffi beautifulsoup4 google-api-python-client google-auth
 
       - name: Executar script de download e upload
         env:
