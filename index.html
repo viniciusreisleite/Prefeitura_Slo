@@ -81,7 +81,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 20px;
+      gap: 25px;
       padding-bottom: 2vh;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
@@ -107,21 +107,12 @@
       color: #f8fafc;
     }
 
-    /* Caixa e Imagem da Logo com tamanho ampliado */
-    .logo-wrapper {
-      background: #ffffff;
-      padding: 10px 18px;
-      border-radius: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      flex-shrink: 0;
-    }
+    /* Logo 100% Transparente e Grande */
     .logo-img {
-      height: clamp(80px, 12vh, 120px);
-      max-width: 220px;
+      height: clamp(85px, 13vh, 130px);
+      max-width: 250px;
       object-fit: contain;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
     }
 
     /* Área de Texto com Auto-Ajuste */
@@ -165,9 +156,7 @@
           <span class="badge" id="post-badge">Informativo</span>
           <h1>Prefeitura Municipal de São Lourenço</h1>
         </div>
-        <div class="logo-wrapper">
-          <img src="logo.png" alt="Logo Prefeitura" class="logo-img" onerror="this.parentElement.style.display='none'">
-        </div>
+        <img src="logo.png" alt="Logo Prefeitura" class="logo-img" onerror="this.style.display='none'">
       </div>
 
       <div class="caption-container" id="caption-container">
