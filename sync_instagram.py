@@ -1,25 +1,10 @@
 import os
-import json
 import time
 import requests
 from playwright.sync_api import sync_playwright
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 
 def main():
-    # 1. Configurar credenciais do Google Drive
-    creds_json = os.environ.get("GDRIVE_CREDENTIALS")
-    folder_id = os.environ.get("GDRIVE_FOLDER_ID")
-
-    creds_dict = json.loads(creds_json)
-    creds = Credentials.from_service_account_info(
-        creds_dict, 
-        scopes=['https://www.googleapis.com/auth/drive']
-    )
-    drive_service = build('drive', 'v3', credentials=creds)
-
-    # 2. Carregar cookies salvos no Secret
+    # 1. Carregar cookies salvos no Secret
     cookies_raw = os.environ.get("INSTAGRAM_COOKIES", "")
     playwright_cookies = []
 
@@ -43,7 +28,7 @@ def main():
     video_url = None
     post_id = f"video_{int(time.time())}"
 
-    # 3. Navegar com Chromium diretamente no Instagram
+    # 2. Navegar com Chromium diretamente no Instagram
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -95,7 +80,7 @@ def main():
 
         browser.close()
 
-    # 4. Baixar o vídeo e enviar para o Google Drive
+    # 3. Baixar o arquivo .mp4 para o ambiente do runner
     if video_url:
         print("Vídeo capturado com sucesso! Baixando mídia...")
         video_file = f"{post_id}.mp4"
@@ -109,22 +94,7 @@ def main():
                 if chunk:
                     f.write(chunk)
                     
-        print(f"Enviando {video_file} para o Google Drive...")
-        file_metadata = {
-            'name': video_file,
-            'parents': [folder_id]
-        }
-        media = MediaFileUpload(video_file, mimetype='video/mp4', resumable=True)
-        
-        # supportsAllDrives=True garante o upload dentro da pasta compartilhada
-        uploaded_file = drive_service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id',
-            supportsAllDrives=True
-        ).execute()
-        
-        print(f"Sucesso total! Arquivo enviado com ID: {uploaded_file.get('id')}")
+        print(f"Sucesso! Arquivo {video_file} pronto para ser publicado em Releases.")
     else:
         print("Nenhum vídeo pôde ser capturado nesta execução.")
 
