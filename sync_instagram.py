@@ -1,8 +1,19 @@
 import os
+import glob
 import json
 import subprocess
 import time
 from playwright.sync_api import sync_playwright
+
+def cleanup_old_videos(allowed_files):
+    """Deleta qualquer arquivo de vídeo que não esteja na lista permitida"""
+    for file_path in glob.glob("*.mp4"):
+        if file_path not in allowed_files:
+            try:
+                os.remove(file_path)
+                print(f"🗑️ Arquivo antigo removido: {file_path}")
+            except Exception as e:
+                print(f"Erro ao remover {file_path}: {e}")
 
 def main():
     # 1. Salvar os cookies no formato Netscape
@@ -50,8 +61,8 @@ def main():
             page.goto(f"https://www.instagram.com/{username}/reels/", wait_until="domcontentloaded", timeout=45000)
             time.sleep(5)
 
-            # Rola a página para baixo para carregar mais publicações
-            page.evaluate("window.scrollBy(0, 1000);")
+            # Rola a página para baixo para carregar os 8 posts
+            page.evaluate("window.scrollBy(0, 1200);")
             time.sleep(3)
 
             links = page.locator("a[href*='/reel/'], a[href*='/p/']").all()
@@ -74,14 +85,15 @@ def main():
         print("Nenhum post foi identificado.")
         return
 
-    # 3. Processar e baixar os 8 vídeos com descrições
+    # 3. Baixar estritamente os 8 vídeos e extrair metadados
     posts_data = []
-    
+    allowed_videos = [f"video_{i}.mp4" for i in range(1, target_count + 1)]
+
     for idx, reel_url in enumerate(reels_urls[:target_count], start=1):
         print(f"\n--- Processando Post #{idx}: {reel_url} ---")
         output_filename = f"video_{idx}.mp4"
 
-        # Extrair legenda original via yt-dlp metadata
+        # Extrair legenda original
         caption = ""
         try:
             desc_cmd = [
@@ -98,7 +110,7 @@ def main():
         except Exception as e:
             print(f"Erro ao capturar legenda: {e}")
 
-        # Baixar o vídeo correspondente
+        # Baixar o vídeo (sobrescreve se já existir)
         cmd = [
             "yt-dlp",
             "--cookies", cookie_file,
@@ -119,11 +131,14 @@ def main():
             "updated_at": time.strftime("%d/%m/%Y às %H:%M")
         })
 
-    # 4. Salvar banco de dados JSON com os 8 posts
+    # 4. Remover qualquer vídeo residual fora dos 8 permitidos
+    cleanup_old_videos(allowed_videos)
+
+    # 5. Salvar o JSON consolidado
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(posts_data, f, ensure_ascii=False, indent=2)
 
-    print("\n✅ Todos os 8 vídeos e legendas foram atualizados com sucesso!")
+    print("\n✅ Concluído! Mantidos apenas os 8 vídeos mais recentes.")
 
 if __name__ == "__main__":
     main()
