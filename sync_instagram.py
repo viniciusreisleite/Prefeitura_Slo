@@ -1,13 +1,16 @@
 import os
+import subprocess
 import time
-import requests
 from playwright.sync_api import sync_playwright
 
 def main():
-    # 1. Carregar cookies salvos no Secret
+    # 1. Salvar os cookies no formato Netscape para o yt-dlp e Playwright
     cookies_raw = os.environ.get("INSTAGRAM_COOKIES", "")
-    playwright_cookies = []
+    cookie_file = "cookies.txt"
+    with open(cookie_file, "w", encoding="utf-8") as f:
+        f.write(cookies_raw)
 
+    playwright_cookies = []
     for line in cookies_raw.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
@@ -25,10 +28,9 @@ def main():
             })
 
     username = "prefeituraslmg"
-    captured_video_url = None
-    post_id = f"video_{int(time.time())}"
+    reel_url = None
 
-    # 2. Navegar com Chromium diretamente no Instagram
+    # 2. Abrir o Instagram com o Playwright para pegar o link exato do post
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -42,68 +44,55 @@ def main():
 
         page = context.new_page()
 
-        # Interceptar tráfego de rede buscando a URL real do CDN (.mp4 / video/mp4)
-        def handle_response(response):
-            nonlocal captured_video_url
-            url = response.url
-            # Evita capturar links blob ou URLs de áudio isoladas
-            if url.startswith("http") and not captured_video_url:
-                ct = response.headers.get("content-type", "")
-                if ("video/mp4" in ct or ".mp4" in url) and ("cdninstagram.com" in url or "fbcdn.net" in url):
-                    print(f"Fluxo de mídia detectado na rede!")
-                    captured_video_url = url
-
-        page.on("response", handle_response)
-
-        print(f"Acessando Reels de @{username} no Instagram...")
+        print(f"Acessando perfil de @{username}...")
         try:
             page.goto(f"https://www.instagram.com/{username}/reels/", wait_until="domcontentloaded", timeout=45000)
             time.sleep(5)
 
-            # Clica no primeiro Reel
+            # Procura pelo primeiro link de Reel
             first_reel = page.locator("a[href*='/reel/']").first
             if first_reel.count() > 0:
-                print("Abrindo o Reel mais recente...")
-                first_reel.click()
-                time.sleep(7)
+                href = first_reel.get_attribute("href")
+                reel_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
+                print(f"Reel mais recente encontrado: {reel_url}")
             else:
+                # Procura no feed se não estiver em Reels
                 first_post = page.locator("a[href*='/p/']").first
                 if first_post.count() > 0:
-                    print("Abrindo publicação do feed...")
-                    first_post.click()
-                    time.sleep(7)
-
-            # Se a resposta de rede direta não foi capturada, busca no elemento JS
-            if not captured_video_url:
-                video_src = page.evaluate("""() => {
-                    const v = document.querySelector('video');
-                    return v ? (v.currentSrc || v.src) : null;
-                }""")
-                if video_src and video_src.startswith("http"):
-                    captured_video_url = video_src
+                    href = first_post.get_attribute("href")
+                    reel_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
+                    print(f"Post com vídeo encontrado: {reel_url}")
 
         except Exception as e:
-            print(f"Aviso durante a navegação: {e}")
+            print(f"Erro durante a navegação: {e}")
 
         browser.close()
 
-    # 3. Baixar o arquivo .mp4 para o GitHub Runner
-    if captured_video_url and captured_video_url.startswith("http"):
-        print(f"Baixando vídeo capturado...")
-        video_file = f"{post_id}.mp4"
+    # 3. Fazer o download completo via yt-dlp usando os cookies
+    if reel_url:
+        output_filename = f"video_{int(time.time())}.mp4"
+        print(f"Baixando vídeo completo com yt-dlp...")
+
+        cmd = [
+            "yt-dlp",
+            "--cookies", cookie_file,
+            "--no-check-certificates",
+            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "-o", output_filename,
+            reel_url
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        print(result.stdout)
         
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        vid_data = requests.get(captured_video_url, headers=headers, stream=True, timeout=90)
-        with open(video_file, 'wb') as f:
-            for chunk in vid_data.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    f.write(chunk)
-                    
-        print(f"Sucesso! Arquivo {video_file} baixado com êxito.")
+        if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
+            size_mb = os.path.getsize(output_filename) / (1024 * 1024)
+            print(f"Sucesso! Vídeo salvo: {output_filename} ({size_mb:.2f} MB)")
+        else:
+            print("Erro: O yt-dlp não conseguiu gerar o arquivo final.")
+            print(result.stderr)
     else:
-        print("Nenhum link HTTP direto de vídeo foi capturado nesta tentativa.")
+        print("Nenhum link de postagem/reel foi identificado.")
 
 if __name__ == "__main__":
     main()
