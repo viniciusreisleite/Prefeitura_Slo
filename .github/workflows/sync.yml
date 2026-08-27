@@ -43,3 +43,12 @@ jobs:
           files: "*.mp4"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Salvar histórico de publicações
+        if: hashFiles('*.mp4') != ''
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add last_video.txt
+          git commit -m "Atualizado histórico com o último vídeo [skip ci]" || exit 0
+          git push
