@@ -27,7 +27,8 @@
       padding: 3vh 2.5vw;
       gap: 2.5vw;
     }
-    /* Coluna do Vídeo */
+
+    /* Coluna de Vídeo (Vertical 9:16) */
     .video-section {
       flex: 0 0 35%;
       height: 100%;
@@ -60,7 +61,7 @@
       transition: width 0.1s linear;
     }
 
-    /* Coluna Informativa com Auto-Layout */
+    /* Coluna Informativa Fixa */
     .info-section {
       flex: 1;
       height: 100%;
@@ -68,17 +69,18 @@
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 20px;
-      padding: 3.5vh 2.5vw;
+      padding: 3vh 2.5vw;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       overflow: hidden;
     }
+
     .header-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1.5vh;
+      margin-bottom: 1.2vh;
     }
     .logo-img {
       max-height: 65px;
@@ -90,43 +92,44 @@
       display: inline-block;
       background: #0284c7;
       color: #fff;
-      font-size: clamp(0.8rem, 1.1vw, 1.1rem);
+      font-size: clamp(0.75rem, 1vw, 1rem);
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      padding: 6px 16px;
+      padding: 6px 14px;
       border-radius: 50px;
     }
     .header h1 {
-      font-size: clamp(1.4rem, 2vw, 2.2rem);
+      font-size: clamp(1.3rem, 1.8vw, 2rem);
       font-weight: 800;
       line-height: 1.2;
       color: #f8fafc;
-      margin-bottom: 0.5vh;
+      margin-bottom: 0.4vh;
     }
     .header .subtitle {
-      font-size: clamp(0.85rem, 1vw, 1.1rem);
+      font-size: clamp(0.8rem, 0.95vw, 1rem);
       color: #94a3b8;
       font-weight: 600;
     }
 
-    /* Caixa de Texto com Auto-Ajuste */
+    /* Área do Texto Estático Sem Scroll */
     .caption-container {
       flex: 1;
-      margin: 2vh 0;
+      margin: 1.5vh 0;
       overflow: hidden;
       display: flex;
-      flex-direction: column;
-      justify-content: center;
-      position: relative;
+      align-items: center;
+      justify-content: flex-start;
+      width: 100%;
+      height: 100%;
     }
     .caption-box {
-      font-size: 1.5rem;
-      line-height: 1.55;
+      width: 100%;
       color: #e2e8f0;
       white-space: pre-line;
-      word-wrap: break-word;
-      transition: font-size 0.2s ease;
+      word-break: break-word;
+      line-height: 1.45;
+      font-weight: 500;
     }
 
     .footer {
@@ -134,8 +137,8 @@
       justify-content: space-between;
       align-items: center;
       border-top: 1px solid rgba(255, 255, 255, 0.15);
-      padding-top: 1.8vh;
-      font-size: clamp(0.85rem, 1vw, 1.1rem);
+      padding-top: 1.5vh;
+      font-size: clamp(0.8rem, 0.95vw, 1rem);
       color: #94a3b8;
     }
     .handle {
@@ -191,19 +194,37 @@
     const urlParams = new URLSearchParams(window.location.search);
     const postId = parseInt(urlParams.get('post')) || 1;
 
-    // Função de Auto-Ajuste de Fonte dinâmico
-    function autoFitText() {
-      const containerHeight = captionContainer.clientHeight;
-      let fontSize = window.innerHeight * 0.035; // Começa com ~3.5% da altura da TV
-      const minFontSize = window.innerHeight * 0.016; // Limite mínimo legível
+    // Algoritmo de Busca Binária para achar a fonte exata que preenche o container
+    function autoFitTextExact() {
+      const containerW = captionContainer.clientWidth;
+      const containerH = captionContainer.clientHeight;
+      
+      if (!containerW || !containerH) return;
 
-      captionText.style.fontSize = fontSize + 'px';
+      let low = 8;     // Tamanho mínimo (px)
+      let high = 60;   // Tamanho máximo (px)
+      let optimal = low;
 
-      // Reduz o tamanho da fonte até que o texto caiba perfeitamente no espaço disponível
-      while (captionText.scrollHeight > containerHeight && fontSize > minFontSize) {
-        fontSize -= 0.5;
-        captionText.style.fontSize = fontSize + 'px';
+      // Executa 10 iterações de aproximação
+      for (let i = 0; i < 10; i++) {
+        const mid = (low + high) / 2;
+        captionText.style.fontSize = mid + 'px';
+        captionText.style.lineHeight = (mid * 1.35) + 'px';
+
+        // Verifica se ultrapassa tanto em altura quanto em largura
+        const overflowH = captionText.scrollHeight > containerH;
+        const overflowW = captionText.scrollWidth > containerW;
+
+        if (!overflowH && !overflowW) {
+          optimal = mid;
+          low = mid; // Pode tentar uma fonte maior
+        } else {
+          high = mid; // Precisa de uma fonte menor
+        }
       }
+
+      captionText.style.fontSize = optimal + 'px';
+      captionText.style.lineHeight = (optimal * 1.35) + 'px';
     }
 
     async function loadPostData() {
@@ -217,9 +238,9 @@
         postDate.innerText = 'Publicado em ' + currentPost.updated_at;
         postBadge.innerText = `Informativo #${postId}`;
 
-        // Aplica o auto-ajuste de texto após renderizar o conteúdo
+        // Espera renderizar e ajusta o tamanho exato da fonte
         requestAnimationFrame(() => {
-          autoFitText();
+          autoFitTextExact();
         });
 
         videoSource.src = currentPost.video_file;
@@ -230,25 +251,17 @@
       }
     }
 
-    // Recalcula o tamanho se a janela/TV mudar de resolução
-    window.addEventListener('resize', autoFitText);
+    window.addEventListener('resize', autoFitTextExact);
 
     // Barra de progresso do vídeo
     player.addEventListener('timeupdate', () => {
       if (player.duration) {
         const pct = (player.currentTime / player.duration) * 100;
         progressBar.style.width = pct + '%';
-
-        // Se o texto for ainda maior que a área após o ajuste mínimo, faz um scroll sutil sincronizado
-        const maxScroll = captionContainer.scrollHeight - captionContainer.clientHeight;
-        if (maxScroll > 0) {
-          captionContainer.scrollTop = (player.currentTime / player.duration) * maxScroll;
-        }
       }
     });
 
     player.addEventListener('ended', () => {
-      captionContainer.scrollTop = 0;
       player.currentTime = 0;
       player.play();
     });
