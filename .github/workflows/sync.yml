@@ -2,9 +2,7 @@ name: Sincronizar Instagram com Drive
 
 on:
   schedule:
-    # Executa a cada 6 horas automaticamente
     - cron: '0 */6 * * *'
-  # Permite rodar manualmente a qualquer momento pelo painel do GitHub
   workflow_dispatch:
 
 jobs:
@@ -22,11 +20,12 @@ jobs:
 
       - name: Instalar dependências
         run: |
-          pip install instaloader google-api-python-client google-auth
+          pip install instaloader google-api-python-client google-auth requests
 
       - name: Executar script de download e upload
         env:
           GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
         run: |
           python sync_instagram.py
