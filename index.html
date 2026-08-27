@@ -65,10 +65,23 @@
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 24px;
-      padding: 4vh 3vw;
+      padding: 3.5vh 3vw;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+    }
+    /* Estilo do Cabeçalho com Logo */
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2vh;
+    }
+    .logo-img {
+      max-height: 75px;
+      max-width: 200px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
     }
     .badge {
       display: inline-block;
@@ -80,25 +93,24 @@
       letter-spacing: 1.5px;
       padding: 8px 18px;
       border-radius: 50px;
-      margin-bottom: 2vh;
     }
     .header h1 {
-      font-size: 2.4rem;
+      font-size: 2.2rem;
       font-weight: 800;
       line-height: 1.2;
       color: #f8fafc;
-      margin-bottom: 1vh;
+      margin-bottom: 0.8vh;
     }
     .header .subtitle {
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       color: #94a3b8;
       font-weight: 600;
     }
     .caption-box {
       flex: 1;
-      margin: 3vh 0;
+      margin: 2.5vh 0;
       overflow-y: auto;
-      font-size: 1.45rem;
+      font-size: 1.4rem;
       line-height: 1.6;
       color: #e2e8f0;
       padding-right: 1vw;
@@ -125,6 +137,7 @@
 <body>
 
   <div class="tv-container">
+    <!-- Coluna de Vídeo -->
     <div class="video-section">
       <video id="player" autoplay playsinline muted>
         <source id="video-source" src="video_1.mp4" type="video/mp4">
@@ -134,9 +147,14 @@
       </div>
     </div>
 
+    <!-- Coluna Informativa -->
     <div class="info-section">
       <div class="header">
-        <span class="badge" id="post-badge">Informativo Oficial</span>
+        <div class="header-top">
+          <span class="badge" id="post-badge">Informativo</span>
+          <!-- Logo Oficial da Prefeitura -->
+          <img src="logo.png" alt="Logo Prefeitura" class="logo-img" onerror="this.style.display='none'">
+        </div>
         <h1>Prefeitura Municipal de São Lourenço</h1>
         <p class="subtitle" id="post-date">Atualizado recentemente</p>
       </div>
@@ -160,7 +178,6 @@
     const postDate = document.getElementById('post-date');
     const postBadge = document.getElementById('post-badge');
 
-    // Lê o parâmetro ?post=X da URL (padrão é 1)
     const urlParams = new URLSearchParams(window.location.search);
     const postId = parseInt(urlParams.get('post')) || 1;
 
@@ -169,23 +186,20 @@
         const res = await fetch('data.json?t=' + new Date().getTime());
         const posts = await res.json();
         
-        // Localiza os dados do post solicitado
         const currentPost = posts.find(p => p.id === postId) || posts[0];
         
         captionText.innerText = currentPost.caption;
         postDate.innerText = 'Publicado em ' + currentPost.updated_at;
         postBadge.innerText = `Informativo #${postId}`;
 
-        // Define a fonte do vídeo correto
         videoSource.src = currentPost.video_file;
         player.load();
-        player.play().catch(e => console.log('Autoplay aguardando interação:', e));
+        player.play().catch(e => console.log('Autoplay:', e));
       } catch (e) {
         console.log('Erro ao carregar dados:', e);
       }
     }
 
-    // Barra de progresso sincronizada com a duração do vídeo
     player.addEventListener('timeupdate', () => {
       if (player.duration) {
         const pct = (player.currentTime / player.duration) * 100;
@@ -193,7 +207,6 @@
       }
     });
 
-    // Quando o vídeo termina, reinicia o loop da cena
     player.addEventListener('ended', () => {
       player.currentTime = 0;
       player.play();
