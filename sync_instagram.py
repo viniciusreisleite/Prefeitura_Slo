@@ -1,6 +1,7 @@
 import os
 import json
 import glob
+from itertools import islice
 import instaloader
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -17,7 +18,7 @@ creds = Credentials.from_service_account_info(
 )
 drive_service = build('drive', 'v3', credentials=creds)
 
-# 2. Configurar o Instaloader para baixar apenas vídeos
+# 2. Configurar o Instaloader
 L = instaloader.Instaloader(
     download_pictures=False,
     download_videos=True,
@@ -28,20 +29,20 @@ L = instaloader.Instaloader(
 )
 
 username = "prefeituraslmg"
-print(f"Buscando publicações de @{username} via Instaloader...")
+print(f"Buscando publicações recentes de @{username}...")
 
 profile = instaloader.Profile.from_username(L.context, username)
 
-# 3. Baixar o vídeo mais recente do perfil
+# 3. Analisa apenas os 5 posts mais recentes para ser rápido
 video_encontrado = False
-for post in profile.get_posts():
+for post in islice(profile.get_posts(), 5):
     if post.is_video:
-        print(f"Baixando vídeo mais recente: {post.shortcode}")
+        print(f"Baixando vídeo recente: {post.shortcode}")
         L.download_post(post, target="downloads")
         video_encontrado = True
         break
 
-# 4. Localizar o arquivo .mp4 e enviar para o Google Drive
+# 4. Enviar para o Google Drive
 if video_encontrado:
     arquivos_mp4 = glob.glob("downloads/*.mp4")
     if arquivos_mp4:
@@ -61,6 +62,6 @@ if video_encontrado:
         ).execute()
         print(f"Sucesso! Arquivo enviado com ID: {uploaded_file.get('id')}")
     else:
-        print("Aviso: O post foi processado, mas nenhum arquivo .mp4 foi gerado localmente.")
+        print("Aviso: Vídeo processado, mas nenhum .mp4 foi salvo localmente.")
 else:
-    print("Nenhum post em formato de vídeo foi encontrado recentemente.")
+    print("Nenhum vídeo encontrado entre as últimas postagens.")
