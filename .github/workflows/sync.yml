@@ -49,6 +49,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add last_video.txt
-          git commit -m "Atualizado histórico com o último vídeo [skip ci]" || exit 0
+          git add --ignore-unmatch last_video.txt
+          git diff-index --quiet HEAD || git commit -m "Atualizado histórico com o último vídeo [skip ci]"
           git push
