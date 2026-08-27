@@ -1,7 +1,8 @@
 import os
 import json
-from bs4 import BeautifulSoup
-from curl_cffi import requests
+import time
+import requests
+from playwright.sync_api import sync_playwright
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -17,55 +18,67 @@ creds = Credentials.from_service_account_info(
 )
 drive_service = build('drive', 'v3', credentials=creds)
 
-# 2. Acessar perfil mascarando TLS como Chrome real
 username = "prefeituraslmg"
-profile_url = f"https://imginn.com/{username}/"
-print(f"Buscando publicações em {profile_url} com impersonação de navegador...")
-
-session = requests.Session(impersonate="chrome120")
-response = session.get(profile_url, timeout=25)
-
-if response.status_code != 200:
-    raise Exception(f"Erro ao acessar perfil: status {response.status_code}")
-
-soup = BeautifulSoup(response.text, 'html.parser')
-items = soup.find_all('div', class_='item')
-
 video_url = None
-post_id = None
+post_id = f"post_{int(time.time())}"
 
-for item in items:
-    link_tag = item.find('a', href=True)
-    if link_tag and ('/p/' in link_tag['href']):
-        post_path = link_tag['href']
-        post_page_url = f"https://imginn.com{post_path}"
-        print(f"Verificando publicação: {post_page_url}")
-        
-        post_resp = session.get(post_page_url, timeout=25)
-        post_soup = BeautifulSoup(post_resp.text, 'html.parser')
-        
-        video_tag = post_soup.find('video')
-        download_btn = post_soup.find('a', class_='download')
-        
-        if video_tag and video_tag.get('src'):
-            video_url = video_tag['src']
-        elif download_btn and download_btn.get('href') and '.mp4' in download_btn['href']:
-            video_url = download_btn['href']
-        
-        if video_url:
-            post_id = post_path.strip('/').split('/')[-1]
-            break
+# 2. Navegar com Chromium real para extrair o vídeo
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    context = browser.new_context(
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        viewport={"width": 1280, "height": 800}
+    )
+    page = context.new_page()
 
-# 3. Fazer download do arquivo de vídeo
+    print(f"Acessando perfil de @{username} via Picuki...")
+    try:
+        page.goto(f"https://www.picuki.com/profile/{username}", wait_until="domcontentloaded", timeout=45000)
+        time.sleep(3)
+        
+        # Encontra o primeiro link de postagem
+        posts = page.locator(".box-photos .box-photo a").all()
+        post_link = None
+        for post in posts:
+            href = post.get_attribute("href")
+            if href and "/media/" in href:
+                post_link = href
+                break
+                
+        if post_link:
+            print(f"Abrindo publicação: {post_link}")
+            page.goto(post_link, wait_until="domcontentloaded", timeout=45000)
+            time.sleep(3)
+            
+            # Localiza a tag de vídeo ou botão de download
+            video_element = page.locator("video source, video").first
+            if video_element.count() > 0:
+                video_url = video_element.get_attribute("src")
+                
+            if not video_url:
+                download_btn = page.locator("a[href*='.mp4'], a.btn-download").first
+                if download_btn.count() > 0:
+                    video_url = download_btn.get_attribute("href")
+                    
+    except Exception as e:
+        print(f"Aviso durante a extração: {e}")
+        
+    browser.close()
+
+# 3. Fazer download do arquivo e enviar ao Google Drive
 if video_url:
-    print(f"Vídeo encontrado! Baixando arquivo mp4...")
+    print(f"Vídeo localizado! Baixando arquivo...")
     video_file = f"video_{post_id}.mp4"
     
-    vid_data = session.get(video_url, timeout=60)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    vid_data = requests.get(video_url, headers=headers, stream=True, timeout=60)
     with open(video_file, 'wb') as f:
-        f.write(vid_data.content)
+        for chunk in vid_data.iter_content(chunk_size=1024*1024):
+            if chunk:
+                f.write(chunk)
                 
-    # 4. Enviar para a pasta do Google Drive
     print(f"Enviando {video_file} para o Google Drive...")
     file_metadata = {
         'name': video_file,
@@ -78,6 +91,6 @@ if video_url:
         fields='id'
     ).execute()
     
-    print(f"Sucesso total! Arquivo enviado com ID: {uploaded_file.get('id')}")
+    print(f"Sucesso! Arquivo enviado com ID: {uploaded_file.get('id')}")
 else:
-    print("Nenhum vídeo recente foi encontrado entre as primeiras postagens.")
+    print("Nenhum vídeo em formato .mp4 pôde ser extraído na última publicação.")
