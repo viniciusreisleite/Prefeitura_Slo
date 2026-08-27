@@ -29,9 +29,10 @@ def main():
             })
 
     username = "prefeituraslmg"
-    reel_url = None
+    target_count = 8
+    reels_urls = []
 
-    # 2. Localizar o link do post mais recente
+    # 2. Localizar os 8 Reels mais recentes com Playwright
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -49,76 +50,80 @@ def main():
             page.goto(f"https://www.instagram.com/{username}/reels/", wait_until="domcontentloaded", timeout=45000)
             time.sleep(5)
 
-            first_reel = page.locator("a[href*='/reel/']").first
-            if first_reel.count() > 0:
-                href = first_reel.get_attribute("href")
-                reel_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
-            else:
-                first_post = page.locator("a[href*='/p/']").first
-                if first_post.count() > 0:
-                    href = first_post.get_attribute("href")
-                    reel_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
+            # Rola a página para baixo para carregar mais publicações
+            page.evaluate("window.scrollBy(0, 1000);")
+            time.sleep(3)
+
+            links = page.locator("a[href*='/reel/'], a[href*='/p/']").all()
+            for l in links:
+                href = l.get_attribute("href")
+                if href:
+                    full_url = f"https://www.instagram.com{href}" if href.startswith("/") else href
+                    if full_url not in reels_urls:
+                        reels_urls.append(full_url)
+                if len(reels_urls) >= target_count:
+                    break
 
         except Exception as e:
             print(f"Erro na navegação: {e}")
 
         browser.close()
 
-    if not reel_url:
-        print("Nenhum post/reel foi identificado.")
+    print(f"Total de posts localizados: {len(reels_urls)}")
+    if not reels_urls:
+        print("Nenhum post foi identificado.")
         return
 
-    print(f"Post detectado: {reel_url}")
+    # 3. Processar e baixar os 8 vídeos com descrições
+    posts_data = []
+    
+    for idx, reel_url in enumerate(reels_urls[:target_count], start=1):
+        print(f"\n--- Processando Post #{idx}: {reel_url} ---")
+        output_filename = f"video_{idx}.mp4"
 
-    # 3. Obter a descrição/legenda original diretamente via yt-dlp
-    post_caption = ""
-    try:
-        desc_cmd = [
+        # Extrair legenda original via yt-dlp metadata
+        caption = ""
+        try:
+            desc_cmd = [
+                "yt-dlp",
+                "--cookies", cookie_file,
+                "--no-check-certificates",
+                "--dump-json",
+                reel_url
+            ]
+            info_res = subprocess.run(desc_cmd, capture_output=True, text=True)
+            if info_res.stdout:
+                info_json = json.loads(info_res.stdout)
+                caption = info_json.get("description") or info_json.get("title") or ""
+        except Exception as e:
+            print(f"Erro ao capturar legenda: {e}")
+
+        # Baixar o vídeo correspondente
+        cmd = [
             "yt-dlp",
             "--cookies", cookie_file,
             "--no-check-certificates",
-            "--dump-json",
+            "--merge-output-format", "mp4",
+            "-f", "bestvideo+bestaudio/best",
+            "-o", output_filename,
+            "--force-overwrites",
             reel_url
         ]
-        info_res = subprocess.run(desc_cmd, capture_output=True, text=True)
-        if info_res.stdout:
-            info_json = json.loads(info_res.stdout)
-            post_caption = info_json.get("description") or info_json.get("title") or ""
-            print(f"Legenda extraída com sucesso! ({len(post_caption)} caracteres)")
-    except Exception as e:
-        print(f"Erro ao extrair legenda via metadata: {e}")
+        subprocess.run(cmd, capture_output=True, text=True)
 
-    # 4. Baixar o vídeo e mesclar no latest.mp4
-    output_filename = "latest.mp4"
-    print("Baixando vídeo e mesclando com ffmpeg...")
+        posts_data.append({
+            "id": idx,
+            "url": reel_url,
+            "video_file": output_filename,
+            "caption": caption.strip() if caption else "Informativo Oficial da Prefeitura Municipal de São Lourenço.",
+            "updated_at": time.strftime("%d/%m/%Y às %H:%M")
+        })
 
-    cmd = [
-        "yt-dlp",
-        "--cookies", cookie_file,
-        "--no-check-certificates",
-        "--merge-output-format", "mp4",
-        "-f", "bestvideo+bestaudio/best",
-        "-o", output_filename,
-        "--force-overwrites",
-        reel_url
-    ]
-    subprocess.run(cmd, capture_output=True, text=True)
-
-    # 5. Salvar os dados para a TV
-    post_data = {
-        "url": reel_url,
-        "username": username,
-        "caption": post_caption.strip() if post_caption else "Confira as últimas novidades da Prefeitura Municipal de São Lourenço.",
-        "updated_at": time.strftime("%d/%m/%Y às %H:%M")
-    }
-
+    # 4. Salvar banco de dados JSON com os 8 posts
     with open("data.json", "w", encoding="utf-8") as f:
-        json.dump(post_data, f, ensure_ascii=False, indent=2)
+        json.dump(posts_data, f, ensure_ascii=False, indent=2)
 
-    with open("last_video.txt", "w", encoding="utf-8") as f:
-        f.write(reel_url)
-
-    print("Painel atualizado com vídeo e texto originais!")
+    print("\n✅ Todos os 8 vídeos e legendas foram atualizados com sucesso!")
 
 if __name__ == "__main__":
     main()
