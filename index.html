@@ -69,35 +69,25 @@
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 24px;
-      padding: 4vh 3vw;
+      padding: 3.5vh 3vw;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       overflow: hidden;
     }
 
-    .header-top {
+    /* Cabeçalho com Logo em Destaque */
+    .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1.5vh;
+      gap: 20px;
+      padding-bottom: 2vh;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
-    .logo-wrapper {
-      background: #ffffff;
-      padding: 8px 14px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+    .header-text {
+      flex: 1;
     }
-    .logo-img {
-      max-height: 55px;
-      max-width: 140px;
-      object-fit: contain;
-    }
-
     .badge {
       display: inline-block;
       background: #0284c7;
@@ -106,20 +96,38 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      padding: 8px 18px;
+      padding: 6px 16px;
       border-radius: 50px;
+      margin-bottom: 1vh;
     }
     .header h1 {
-      font-size: clamp(1.4rem, 2vw, 2.3rem);
+      font-size: clamp(1.4rem, 2.1vw, 2.5rem);
       font-weight: 800;
       line-height: 1.2;
       color: #f8fafc;
     }
 
+    /* Caixa e Imagem da Logo com tamanho ampliado */
+    .logo-wrapper {
+      background: #ffffff;
+      padding: 10px 18px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      flex-shrink: 0;
+    }
+    .logo-img {
+      height: clamp(80px, 12vh, 120px);
+      max-width: 220px;
+      object-fit: contain;
+    }
+
     /* Área de Texto com Auto-Ajuste */
     .caption-container {
       flex: 1;
-      margin-top: 2.5vh;
+      margin-top: 2vh;
       overflow: hidden;
       display: flex;
       align-items: center;
@@ -153,13 +161,13 @@
     <!-- Coluna Informativa -->
     <div class="info-section">
       <div class="header">
-        <div class="header-top">
+        <div class="header-text">
           <span class="badge" id="post-badge">Informativo</span>
-          <div class="logo-wrapper">
-            <img src="logo.png" alt="Logo Prefeitura" class="logo-img" onerror="this.parentElement.style.display='none'">
-          </div>
+          <h1>Prefeitura Municipal de São Lourenço</h1>
         </div>
-        <h1>Prefeitura Municipal de São Lourenço</h1>
+        <div class="logo-wrapper">
+          <img src="logo.png" alt="Logo Prefeitura" class="logo-img" onerror="this.parentElement.style.display='none'">
+        </div>
       </div>
 
       <div class="caption-container" id="caption-container">
@@ -181,7 +189,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const postId = parseInt(urlParams.get('post')) || 1;
 
-    // Busca binária para maximizar o tamanho da fonte sem estourar a tela
+    // Algoritmo de busca binária para preencher com a melhor fonte
     function autoFitTextExact() {
       const containerW = captionContainer.clientWidth;
       const containerH = captionContainer.clientHeight;
