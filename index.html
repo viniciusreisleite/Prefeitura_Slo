@@ -61,7 +61,7 @@
       transition: width 0.1s linear;
     }
 
-    /* Coluna Informativa Fixa */
+    /* Coluna Informativa */
     .info-section {
       flex: 1;
       height: 100%;
@@ -83,7 +83,6 @@
       margin-bottom: 1.5vh;
     }
     
-    /* Moldura elegante para a Logo */
     .logo-wrapper {
       background: #ffffff;
       padding: 8px 14px;
@@ -115,18 +114,12 @@
       font-weight: 800;
       line-height: 1.2;
       color: #f8fafc;
-      margin-bottom: 0.5vh;
-    }
-    .header .subtitle {
-      font-size: clamp(0.85rem, 1vw, 1.15rem);
-      color: #94a3b8;
-      font-weight: 600;
     }
 
-    /* Área de Texto Dinâmica */
+    /* Área de Texto com Auto-Ajuste */
     .caption-container {
       flex: 1;
-      margin-top: 2vh;
+      margin-top: 2.5vh;
       overflow: hidden;
       display: flex;
       align-items: center;
@@ -157,7 +150,7 @@
       </div>
     </div>
 
-    <!-- Coluna Informativa sem Rodapé -->
+    <!-- Coluna Informativa -->
     <div class="info-section">
       <div class="header">
         <div class="header-top">
@@ -167,7 +160,6 @@
           </div>
         </div>
         <h1>Prefeitura Municipal de São Lourenço</h1>
-        <p class="subtitle" id="post-date">Atualizado recentemente</p>
       </div>
 
       <div class="caption-container" id="caption-container">
@@ -184,13 +176,12 @@
     const progressBar = document.getElementById('progress');
     const captionContainer = document.getElementById('caption-container');
     const captionText = document.getElementById('caption-text');
-    const postDate = document.getElementById('post-date');
     const postBadge = document.getElementById('post-badge');
 
     const urlParams = new URLSearchParams(window.location.search);
     const postId = parseInt(urlParams.get('post')) || 1;
 
-    // Busca binária para achar o tamanho máximo exato da fonte
+    // Busca binária para maximizar o tamanho da fonte sem estourar a tela
     function autoFitTextExact() {
       const containerW = captionContainer.clientWidth;
       const containerH = captionContainer.clientHeight;
@@ -229,7 +220,6 @@
         const currentPost = posts.find(p => p.id === postId) || posts[0];
         
         captionText.innerText = currentPost.caption;
-        postDate.innerText = 'Publicado em ' + currentPost.updated_at;
         postBadge.innerText = `Informativo #${postId}`;
 
         requestAnimationFrame(() => {
