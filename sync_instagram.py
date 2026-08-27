@@ -57,7 +57,6 @@ def main():
 
         page = context.new_page()
 
-        # Interceptar URLs de arquivos de vídeo MP4 transferidos pela rede
         def intercept_response(response):
             nonlocal video_url
             if ".mp4" in response.url or "video" in response.headers.get("content-type", ""):
@@ -71,7 +70,6 @@ def main():
             page.goto(f"https://www.instagram.com/{username}/reels/", wait_until="domcontentloaded", timeout=45000)
             time.sleep(5)
 
-            # Clica no primeiro Reel disponível
             first_reel = page.locator("a[href*='/reel/']").first
             if first_reel.count() > 0:
                 print("Abrindo o Reel mais recente...")
@@ -117,10 +115,13 @@ def main():
             'parents': [folder_id]
         }
         media = MediaFileUpload(video_file, mimetype='video/mp4', resumable=True)
+        
+        # supportsAllDrives=True garante o upload dentro da pasta compartilhada
         uploaded_file = drive_service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id'
+            fields='id',
+            supportsAllDrives=True
         ).execute()
         
         print(f"Sucesso total! Arquivo enviado com ID: {uploaded_file.get('id')}")
