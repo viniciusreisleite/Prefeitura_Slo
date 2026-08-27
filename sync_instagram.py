@@ -1,6 +1,7 @@
 import os
 import json
 import glob
+from http.cookiejar import MozillaCookieJar
 from itertools import islice
 import instaloader
 from google.oauth2.service_account import Credentials
@@ -18,7 +19,7 @@ creds = Credentials.from_service_account_info(
 )
 drive_service = build('drive', 'v3', credentials=creds)
 
-# 2. Configurar o Instaloader
+# 2. Configurar Instaloader com Cookies
 L = instaloader.Instaloader(
     download_pictures=False,
     download_videos=True,
@@ -28,16 +29,28 @@ L = instaloader.Instaloader(
     save_metadata=False
 )
 
+cookies_content = os.environ.get("INSTAGRAM_COOKIES")
+if cookies_content:
+    cookie_file = "cookies.txt"
+    with open(cookie_file, "w", encoding="utf-8") as f:
+        f.write(cookies_content)
+    
+    # Carrega os cookies no formato Netscape/Mozilla
+    cj = MozillaCookieJar(cookie_file)
+    cj.load(ignore_discard=True, ignore_expires=True)
+    L.context._session.cookies = cj
+    print("Sessão autenticada via cookies com sucesso!")
+
 username = "prefeituraslmg"
-print(f"Buscando publicações recentes de @{username}...")
+print(f"Buscando publicações de @{username}...")
 
 profile = instaloader.Profile.from_username(L.context, username)
 
-# 3. Analisa apenas os 5 posts mais recentes para ser rápido
+# 3. Localizar e baixar o vídeo mais recente
 video_encontrado = False
 for post in islice(profile.get_posts(), 5):
     if post.is_video:
-        print(f"Baixando vídeo recente: {post.shortcode}")
+        print(f"Baixando vídeo: {post.shortcode}")
         L.download_post(post, target="downloads")
         video_encontrado = True
         break
@@ -60,8 +73,4 @@ if video_encontrado:
             media_body=media,
             fields='id'
         ).execute()
-        print(f"Sucesso! Arquivo enviado com ID: {uploaded_file.get('id')}")
-    else:
-        print("Aviso: Vídeo processado, mas nenhum .mp4 foi salvo localmente.")
-else:
-    print("Nenhum vídeo encontrado entre as últimas postagens.")
+        print(f"Concluído! ID no Drive: {uploaded_file.get('id')}")
