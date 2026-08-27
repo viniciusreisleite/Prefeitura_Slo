@@ -1,11 +1,14 @@
-name: Sincronizar Instagram com Drive
+name: Sincronizar Instagram com GitHub Releases
 
 on:
   schedule:
     # Executa a cada 6 horas automaticamente
     - cron: '0 */6 * * *'
-  # Permite rodar manualmente a qualquer momento pelo painel do GitHub
+  # Permite rodar manualmente pelo painel
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   sync:
@@ -22,13 +25,21 @@ jobs:
 
       - name: Instalar dependências e Navegador
         run: |
-          pip install playwright google-api-python-client google-auth requests
+          pip install playwright requests
           playwright install chromium --with-deps
 
-      - name: Executar script de download e upload
+      - name: Baixar vídeo do Instagram
         env:
-          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
-          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
           INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
         run: |
           python sync_instagram.py
+
+      - name: Publicar vídeo no GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: hashFiles('*.mp4') != ''
+        with:
+          tag_name: video-${{ github.run_number }}
+          name: "Novo Vídeo Instagram - ${{ github.run_number }}"
+          files: "*.mp4"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
