@@ -33,7 +33,7 @@
       flex: 0 0 35%;
       height: 100%;
       background: #000;
-      border-radius: 20px;
+      border-radius: 24px;
       overflow: hidden;
       box-shadow: 0 20px 40px rgba(0,0,0,0.6);
       display: flex;
@@ -68,8 +68,8 @@
       background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      padding: 3vh 2.5vw;
+      border-radius: 24px;
+      padding: 4vh 3vw;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -80,42 +80,53 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1.2vh;
+      margin-bottom: 1.5vh;
+    }
+    
+    /* Moldura elegante para a Logo */
+    .logo-wrapper {
+      background: #ffffff;
+      padding: 8px 14px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.35);
     }
     .logo-img {
-      max-height: 65px;
-      max-width: 180px;
+      max-height: 55px;
+      max-width: 140px;
       object-fit: contain;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
     }
+
     .badge {
       display: inline-block;
       background: #0284c7;
       color: #fff;
-      font-size: clamp(0.75rem, 1vw, 1rem);
+      font-size: clamp(0.75rem, 1vw, 1.05rem);
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      padding: 6px 14px;
+      padding: 8px 18px;
       border-radius: 50px;
     }
     .header h1 {
-      font-size: clamp(1.3rem, 1.8vw, 2rem);
+      font-size: clamp(1.4rem, 2vw, 2.3rem);
       font-weight: 800;
       line-height: 1.2;
       color: #f8fafc;
-      margin-bottom: 0.4vh;
+      margin-bottom: 0.5vh;
     }
     .header .subtitle {
-      font-size: clamp(0.8rem, 0.95vw, 1rem);
+      font-size: clamp(0.85rem, 1vw, 1.15rem);
       color: #94a3b8;
       font-weight: 600;
     }
 
-    /* Área do Texto Estático Sem Scroll */
+    /* Área de Texto Dinâmica */
     .caption-container {
       flex: 1;
-      margin: 1.5vh 0;
+      margin-top: 2vh;
       overflow: hidden;
       display: flex;
       align-items: center;
@@ -131,25 +142,12 @@
       line-height: 1.45;
       font-weight: 500;
     }
-
-    .footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
-      padding-top: 1.5vh;
-      font-size: clamp(0.8rem, 0.95vw, 1rem);
-      color: #94a3b8;
-    }
-    .handle {
-      font-weight: 700;
-      color: #38bdf8;
-    }
   </style>
 </head>
 <body>
 
   <div class="tv-container">
+    <!-- Coluna de Vídeo -->
     <div class="video-section">
       <video id="player" autoplay playsinline muted>
         <source id="video-source" src="video_1.mp4" type="video/mp4">
@@ -159,11 +157,14 @@
       </div>
     </div>
 
+    <!-- Coluna Informativa sem Rodapé -->
     <div class="info-section">
       <div class="header">
         <div class="header-top">
           <span class="badge" id="post-badge">Informativo</span>
-          <img src="logo.png" alt="Logo Prefeitura" class="logo-img" onerror="this.style.display='none'">
+          <div class="logo-wrapper">
+            <img src="logo.png" alt="Logo Prefeitura" class="logo-img" onerror="this.parentElement.style.display='none'">
+          </div>
         </div>
         <h1>Prefeitura Municipal de São Lourenço</h1>
         <p class="subtitle" id="post-date">Atualizado recentemente</p>
@@ -173,11 +174,6 @@
         <div class="caption-box" id="caption-text">
           Carregando informações...
         </div>
-      </div>
-
-      <div class="footer">
-        <div>Acompanhe: <span class="handle">@prefeituraslmg</span></div>
-        <div id="status-tag">🔴 Em Exibição</div>
       </div>
     </div>
   </div>
@@ -194,32 +190,30 @@
     const urlParams = new URLSearchParams(window.location.search);
     const postId = parseInt(urlParams.get('post')) || 1;
 
-    // Algoritmo de Busca Binária para achar a fonte exata que preenche o container
+    // Busca binária para achar o tamanho máximo exato da fonte
     function autoFitTextExact() {
       const containerW = captionContainer.clientWidth;
       const containerH = captionContainer.clientHeight;
       
       if (!containerW || !containerH) return;
 
-      let low = 8;     // Tamanho mínimo (px)
-      let high = 60;   // Tamanho máximo (px)
+      let low = 10;
+      let high = 65;
       let optimal = low;
 
-      // Executa 10 iterações de aproximação
       for (let i = 0; i < 10; i++) {
         const mid = (low + high) / 2;
         captionText.style.fontSize = mid + 'px';
         captionText.style.lineHeight = (mid * 1.35) + 'px';
 
-        // Verifica se ultrapassa tanto em altura quanto em largura
         const overflowH = captionText.scrollHeight > containerH;
         const overflowW = captionText.scrollWidth > containerW;
 
         if (!overflowH && !overflowW) {
           optimal = mid;
-          low = mid; // Pode tentar uma fonte maior
+          low = mid;
         } else {
-          high = mid; // Precisa de uma fonte menor
+          high = mid;
         }
       }
 
@@ -238,7 +232,6 @@
         postDate.innerText = 'Publicado em ' + currentPost.updated_at;
         postBadge.innerText = `Informativo #${postId}`;
 
-        // Espera renderizar e ajusta o tamanho exato da fonte
         requestAnimationFrame(() => {
           autoFitTextExact();
         });
@@ -253,7 +246,6 @@
 
     window.addEventListener('resize', autoFitTextExact);
 
-    // Barra de progresso do vídeo
     player.addEventListener('timeupdate', () => {
       if (player.duration) {
         const pct = (player.currentTime / player.duration) * 100;
