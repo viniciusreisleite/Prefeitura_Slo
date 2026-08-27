@@ -81,15 +81,16 @@ def main():
         print(f"O vídeo {reel_url} já foi baixado anteriormente. Nada a fazer.")
         return
 
-    # 4. Fazer o download do vídeo inédito
+    # 4. Fazer o download e juntar áudio/vídeo com yt-dlp + ffmpeg
     output_filename = f"video_{int(time.time())}.mp4"
-    print(f"Novo vídeo detectado! Baixando com yt-dlp...")
+    print("Novo vídeo detectado! Baixando com yt-dlp e mesclando com ffmpeg...")
 
     cmd = [
         "yt-dlp",
         "--cookies", cookie_file,
         "--no-check-certificates",
-        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        "--merge-output-format", "mp4",
+        "-f", "bestvideo+bestaudio/best",
         "-o", output_filename,
         reel_url
     ]
@@ -99,9 +100,9 @@ def main():
 
     if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
         size_mb = os.path.getsize(output_filename) / (1024 * 1024)
-        print(f"Sucesso! Vídeo salvo: {output_filename} ({size_mb:.2f} MB)")
+        print(f"Sucesso! Vídeo completo com áudio salvo: {output_filename} ({size_mb:.2f} MB)")
         
-        # Salva o link no arquivo de controle para a próxima checagem
+        # Grava o link do vídeo processado
         with open(last_video_file, "w", encoding="utf-8") as f:
             f.write(reel_url)
     else:
