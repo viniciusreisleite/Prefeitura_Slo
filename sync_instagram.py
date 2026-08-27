@@ -22,7 +22,7 @@ username = "prefeituraslmg"
 video_url = None
 post_id = f"post_{int(time.time())}"
 
-# 2. Navegar com Chromium real para extrair o vídeo
+# 2. Navegar com Playwright
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
     context = browser.new_context(
@@ -31,51 +31,64 @@ with sync_playwright() as p:
     )
     page = context.new_page()
 
-    print(f"Acessando perfil de @{username} via Picuki...")
+    profile_url = f"https://www.picuki.com/profile/{username}"
+    print(f"Acessando {profile_url}...")
+    
     try:
-        page.goto(f"https://www.picuki.com/profile/{username}", wait_until="domcontentloaded", timeout=45000)
+        page.goto(profile_url, wait_until="networkidle", timeout=60000)
         time.sleep(3)
-        
-        # Encontra o primeiro link de postagem
-        posts = page.locator(".box-photos .box-photo a").all()
-        post_link = None
-        for post in posts:
-            href = post.get_attribute("href")
-            if href and "/media/" in href:
-                post_link = href
-                break
-                
-        if post_link:
-            print(f"Abrindo publicação: {post_link}")
-            page.goto(post_link, wait_until="domcontentloaded", timeout=45000)
-            time.sleep(3)
-            
-            # Localiza a tag de vídeo ou botão de download
-            video_element = page.locator("video source, video").first
-            if video_element.count() > 0:
-                video_url = video_element.get_attribute("src")
-                
-            if not video_url:
-                download_btn = page.locator("a[href*='.mp4'], a.btn-download").first
-                if download_btn.count() > 0:
-                    video_url = download_btn.get_attribute("href")
-                    
+
+        # Busca links que contenham /media/ no perfil
+        links = page.eval_on_selector_all(
+            "a[href*='/media/']",
+            "elements => elements.map(el => el.href)"
+        )
+        print(f"Total de publicações encontradas: {len(links)}")
+
+        if links:
+            # Testa os primeiros posts até achar um com vídeo
+            for post_link in links[:5]:
+                print(f"Verificando publicação: {post_link}")
+                page.goto(post_link, wait_until="networkidle", timeout=45000)
+                time.sleep(2)
+
+                # 1ª Tentativa: Tag <video>
+                video_src = page.eval_on_selector(
+                    "video, video source",
+                    "el => el ? (el.src || el.getAttribute('src')) : null"
+                )
+
+                # 2ª Tentativa: Botão ou link de download
+                if not video_src:
+                    video_src = page.eval_on_selector(
+                        "a[href*='.mp4'], a.download-link, a.btn-download, a:has-text('Download')",
+                        "el => el ? el.href : null"
+                    )
+
+                if video_src and "blob:" not in video_src:
+                    print(f"Link de vídeo encontrado: {video_src[:60]}...")
+                    video_url = video_src
+                    break
+        else:
+            print("Nenhum link de postagem foi retornado na página do perfil.")
+
     except Exception as e:
-        print(f"Aviso durante a extração: {e}")
-        
+        print(f"Erro durante a navegação: {e}")
+
     browser.close()
 
-# 3. Fazer download do arquivo e enviar ao Google Drive
+# 3. Baixar o arquivo e enviar ao Google Drive
 if video_url:
-    print(f"Vídeo localizado! Baixando arquivo...")
+    print("Iniciando download do vídeo...")
     video_file = f"video_{post_id}.mp4"
     
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
-    vid_data = requests.get(video_url, headers=headers, stream=True, timeout=60)
+    
+    vid_data = requests.get(video_url, headers=headers, stream=True, timeout=90)
     with open(video_file, 'wb') as f:
-        for chunk in vid_data.iter_content(chunk_size=1024*1024):
+        for chunk in vid_data.iter_content(chunk_size=1024 * 1024):
             if chunk:
                 f.write(chunk)
                 
@@ -91,6 +104,6 @@ if video_url:
         fields='id'
     ).execute()
     
-    print(f"Sucesso! Arquivo enviado com ID: {uploaded_file.get('id')}")
+    print(f"Sucesso! Arquivo enviado ao Drive com ID: {uploaded_file.get('id')}")
 else:
-    print("Nenhum vídeo em formato .mp4 pôde ser extraído na última publicação.")
+    print("Nenhum arquivo de vídeo foi identificado para download.")
