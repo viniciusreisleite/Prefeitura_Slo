@@ -1,18 +1,12 @@
 import os
 import json
-import yt_dlp
+import glob
+import instaloader
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-# 1. Carregar cookies do Instagram salvos no Secret
-cookies_content = os.environ.get("INSTAGRAM_COOKIES")
-cookies_file = "cookies.txt"
-if cookies_content:
-    with open(cookies_file, "w", encoding="utf-8") as f:
-        f.write(cookies_content)
-
-# 2. Configurar credenciais do Google Drive
+# 1. Configurar credenciais do Google Drive
 creds_json = os.environ.get("GDRIVE_CREDENTIALS")
 folder_id = os.environ.get("GDRIVE_FOLDER_ID")
 
@@ -23,33 +17,51 @@ creds = Credentials.from_service_account_info(
 )
 drive_service = build('drive', 'v3', credentials=creds)
 
-# 3. Baixar o vídeo mais recente com yt-dlp usando cookies
+# 2. Configurar o Instaloader para baixar apenas vídeos
+L = instaloader.Instaloader(
+    download_pictures=False,
+    download_videos=True,
+    download_video_thumbnails=False,
+    download_geotags=False,
+    download_comments=False,
+    save_metadata=False,
+    compress_history=False
+)
+
 username = "prefeituraslmg"
-ydl_opts = {
-    'outtmpl': 'video_instagram.%(ext)s',
-    'format': 'mp4/best',
-    'playlist_items': '1',
-    'cookiefile': cookies_file if cookies_content else None,
-    'quiet': False
-}
+print(f"Buscando publicações de @{username} via Instaloader...")
 
-print(f"Buscando publicações de @{username} com autenticação...")
-with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-    ydl.download([f"https://www.instagram.com/{username}/"])
+profile = instaloader.Profile.from_username(L.context, username)
 
-# 4. Enviar o vídeo para o Google Drive
-for file_name in os.listdir('.'):
-    if file_name.startswith('video_instagram') and file_name.endswith('.mp4'):
-        print(f"Enviando {file_name} para o Google Drive...")
+# 3. Baixar o vídeo mais recente do perfil
+video_encontrado = False
+for post in profile.get_posts():
+    if post.is_video:
+        print(f"Baixando vídeo mais recente: {post.shortcode}")
+        L.download_post(post, target="downloads")
+        video_encontrado = True
+        break
+
+# 4. Localizar o arquivo .mp4 e enviar para o Google Drive
+if video_encontrado:
+    arquivos_mp4 = glob.glob("downloads/*.mp4")
+    if arquivos_mp4:
+        caminho_video = arquivos_mp4[0]
+        nome_arquivo = os.path.basename(caminho_video)
+        print(f"Enviando {nome_arquivo} para o Google Drive...")
+        
         file_metadata = {
-            'name': file_name,
+            'name': nome_arquivo,
             'parents': [folder_id]
         }
-        media = MediaFileUpload(file_name, mimetype='video/mp4', resumable=True)
+        media = MediaFileUpload(caminho_video, mimetype='video/mp4', resumable=True)
         uploaded_file = drive_service.files().create(
             body=file_metadata,
             media_body=media,
             fields='id'
         ).execute()
         print(f"Sucesso! Arquivo enviado com ID: {uploaded_file.get('id')}")
-        break
+    else:
+        print("Aviso: O post foi processado, mas nenhum arquivo .mp4 foi gerado localmente.")
+else:
+    print("Nenhum post em formato de vídeo foi encontrado recentemente.")
