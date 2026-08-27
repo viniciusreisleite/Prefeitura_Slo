@@ -23,8 +23,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Instalar dependências e Navegador
+      - name: Instalar FFmpeg, dependências e Navegador
         run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
           pip install playwright yt-dlp
           playwright install chromium --with-deps
 
@@ -49,6 +50,8 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add --ignore-unmatch last_video.txt
-          git diff-index --quiet HEAD || git commit -m "Atualizado histórico com o último vídeo [skip ci]"
-          git push
+          if [ -f last_video.txt ]; then
+            git add last_video.txt
+            git diff-index --quiet HEAD || git commit -m "Atualizado histórico com o último vídeo [skip ci]"
+            git push
+          fi
