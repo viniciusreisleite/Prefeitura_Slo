@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mural Digital - TV</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: radial-gradient(circle at top right, #1e293b, #0f172a);
+      color: #ffffff;
+      font-family: 'Montserrat', sans-serif;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+    /* Layout Horizontal 16:9 */
+    .tv-container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      padding: 2.5vh;
+      gap: 2.5vw;
+    }
+    /* Coluna do Vídeo (Vertical 9:16) */
+    .video-section {
+      flex: 0 0 35%;
+      height: 100%;
+      background: #000;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    /* Barra de Progresso da Duração */
+    .progress-bar-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #38bdf8;
+      transition: width 0.1s linear;
+    }
+    /* Coluna Lateral da Descrição e Design */
+    .info-section {
+      flex: 1;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 4vh 3vw;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .badge {
+      display: inline-block;
+      background: #0284c7;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 8px 18px;
+      border-radius: 50px;
+      margin-bottom: 2vh;
+    }
+    .header h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #f8fafc;
+      margin-bottom: 1vh;
+    }
+    .header .subtitle {
+      font-size: 1.2rem;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .caption-box {
+      flex: 1;
+      margin: 3vh 0;
+      overflow-y: auto;
+      font-size: 1.5rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+      padding-right: 1vw;
+    }
+    .caption-box::-webkit-scrollbar {
+      display: none;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 2vh;
+      font-size: 1.1rem;
+      color: #94a3b8;
+    }
+    .handle {
+      font-weight: 700;
+      color: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tv-container">
+    <!-- Coluna de Vídeo -->
+    <div class="video-section">
+      <video id="player" autoplay playsinline muted>
+        <source src="latest.mp4" type="video/mp4">
+      </video>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progress"></div>
+      </div>
+    </div>
+
+    <!-- Coluna Informativa -->
+    <div class="info-section">
+      <div class="header">
+        <span class="badge">Informativo Oficial</span>
+        <h1>Prefeitura Municipal de São Lourenço</h1>
+        <p class="subtitle" id="post-date">Atualizado recentemente</p>
+      </div>
+
+      <div class="caption-box" id="caption-text">
+        Carregando informações...
+      </div>
+
+      <div class="footer">
+        <div>Acompanhe: <span class="handle">@prefeituraslmg</span></div>
+        <div id="status-tag">🔴 Em Exibição</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const player = document.getElementById('player');
+    const progressBar = document.getElementById('progress');
+    const captionText = document.getElementById('caption-text');
+    const postDate = document.getElementById('post-date');
+
+    // Carrega a descrição e data do post
+    async function loadPostData() {
+      try {
+        const res = await fetch('data.json?t=' + new Date().getTime());
+        const data = await res.json();
+        captionText.innerText = data.caption;
+        postDate.innerText = 'Publicado em ' + data.updated_at;
+      } catch (e) {
+        console.log('Erro ao carregar dados:', e);
+      }
+    }
+
+    // Atualiza a barra de progresso em sincronia com o vídeo
+    player.addEventListener('timeupdate', () => {
+      if (player.duration) {
+        const pct = (player.currentTime / player.duration) * 100;
+        progressBar.style.width = pct + '%';
+      }
+    });
+
+    // Quando o vídeo termina a exibição, reinicia o ciclo
+    player.addEventListener('ended', () => {
+      loadPostData();
+      player.currentTime = 0;
+      player.play();
+    });
+
+    loadPostData();
+  </script>
+</body>
+</html>
