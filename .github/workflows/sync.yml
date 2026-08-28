@@ -44,7 +44,7 @@ jobs:
           
           rm -f cookies.txt
           
-          git add video_*.mp4 data.json index.html logo.png .gitignore || true
+          git add -A
           
           if ! git diff-index --quiet HEAD; then
             git commit -m "Atualizados os 8 vídeos da Prefeitura [skip ci]"
