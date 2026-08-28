@@ -1,8 +1,7 @@
-name: Sincronizar Instagram com Painel de TV (8 Posts)
+name: Sincronizar Instagram - Prefeitura SLMG
 
 on:
   schedule:
-    # Executa automaticamente a cada 3 horas (00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 UTC)
     - cron: '0 */3 * * *'
   workflow_dispatch:
 
@@ -38,20 +37,17 @@ jobs:
         run: |
           python sync_instagram.py
 
-      - name: Salvar arquivos e limpar histórico no Git
+      - name: Salvar arquivos no Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Puxa atualizações remotas
-          git fetch origin main
-          git rebase -X theirs origin/main || git rebase --abort || true
+          rm -f cookies.txt
           
-          # O -A adiciona novos/modificados e deleta do Git os arquivos que foram apagados do disco
-          git add -A
+          git add video_*.mp4 data.json index.html logo.png .gitignore || true
           
           if ! git diff-index --quiet HEAD; then
-            git commit -m "Mantendo estritamente os 8 vídeos mais recentes [skip ci]"
+            git commit -m "Atualizados os 8 vídeos da Prefeitura [skip ci]"
             git push origin main
           fi
 
