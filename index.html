@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -45,7 +45,7 @@
       position: relative;
       border: 2px solid rgba(56, 189, 248, 0.45);
     }
-    video {
+    video, #image-player {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -152,7 +152,7 @@
   <div class="tv-container">
     <!-- Coluna de Vídeo -->
     <div class="video-section">
-      <video id="player" autoplay playsinline muted loop preload="auto"></video>
+      <img id="image-player" style="display:none; width:100%; height:100%; object-fit:contain; background-color:#050505;" /><video id="player" autoplay playsinline muted loop preload="auto"></video>
       <div class="progress-bar-container">
         <div class="progress-bar" id="progress"></div>
       </div>
@@ -177,143 +177,79 @@
   </div>
 
   <script>
-    const player = document.getElementById('player');
-    const progressBar = document.getElementById('progress');
-    const captionContainer = document.getElementById('caption-container');
-    const captionText = document.getElementById('caption-text');
+    function ajustarFonteTexto(container, elemento) {
+      let fontSize = window.innerHeight * 0.024;
+      const minFontSize = window.innerHeight * 0.013;
+      elemento.style.fontSize = `${fontSize}px`;
+      elemento.style.lineHeight = '1.45';
 
-    // Reforça o mudo para garantir reprodução imediata nas Smart TVs
-    player.muted = true;
-    player.defaultMuted = true;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const postId = parseInt(urlParams.get('post')) || 1;
-
-    let retryCount = 0;
-    const maxRetries = 5;
-
-    function autoFitTextExact() {
-      const containerW = captionContainer.clientWidth;
-      const containerH = captionContainer.clientHeight;
-      
-      if (!containerW || !containerH) return;
-
-      let low = 12;
-      let high = 65;
-      let optimal = low;
-
-      for (let i = 0; i < 10; i++) {
-        const mid = (low + high) / 2;
-        captionText.style.fontSize = mid + 'px';
-        captionText.style.lineHeight = (mid * 1.35) + 'px';
-
-        const overflowH = captionText.scrollHeight > containerH;
-        const overflowW = captionText.scrollWidth > containerW;
-
-        if (!overflowH && !overflowW) {
-          optimal = mid;
-          low = mid;
-        } else {
-          high = mid;
-        }
+      while (elemento.scrollHeight > container.clientHeight && fontSize > minFontSize) {
+        fontSize -= 0.5;
+        elemento.style.fontSize = `${fontSize}px`;
       }
 
-      captionText.style.fontSize = optimal + 'px';
-      captionText.style.lineHeight = (optimal * 1.35) + 'px';
-    }
-
-    function safePlay() {
-      const playPromise = player.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          player.muted = true;
-          player.play().catch(() => {});
-        });
+      if (elemento.scrollHeight > container.clientHeight) {
+        elemento.style.lineHeight = '1.3';
       }
     }
 
-    player.addEventListener('canplay', () => {
-      safePlay();
-    });
+    document.addEventListener('DOMContentLoaded', async () => {
+      const timestamp = Date.now();
+      const containerElem = document.getElementById('caption-container') || document.querySelector('.caption-container');
+      const captionElem = document.getElementById('caption-text') || document.querySelector('.caption-text');
+      const player = document.getElementById('player');
+      const videoSource = document.getElementById('video-source');
+      const imagePlayer = document.getElementById('image-player');
 
-    player.addEventListener('error', () => {
-      retryCount++;
-      if (retryCount <= maxRetries) {
-        setTimeout(() => {
-          player.load();
-          safePlay();
-        }, 2000);
-      } else {
-        setTimeout(() => {
-          window.location.reload();
-        }, 5000);
-      }
-    });
-
-    player.addEventListener('playing', () => {
-      retryCount = 0;
-    });
-
-    player.addEventListener('timeupdate', () => {
-      if (player.duration) {
-        const pct = (player.currentTime / player.duration) * 100;
-        progressBar.style.width = pct + '%';
-      }
-    });
-
-    player.addEventListener('ended', () => {
-      player.currentTime = 0;
-      safePlay();
-    });
-
-    // Verificação de segurança periódica
-    setInterval(() => {
-      if (player.paused && player.readyState >= 2) {
-        safePlay();
-      }
-    }, 2000);
-
-    async function init() {
-      const cacheBuster = Date.now();
       try {
-        const response = await fetch(`data.json?_=${cacheBuster}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-
-        if (!response.ok) throw new Error('Falha ao carregar data.json');
-
+        const response = await fetch(`data.json?t=${timestamp}`);
         const posts = await response.json();
-        const currentPost = posts.find(p => p.id === postId) || posts[0];
+        if (!Array.isArray(posts) || posts.length === 0) return;
 
-        if (currentPost) {
-          captionText.innerText = currentPost.caption || 'Prefeitura de São Lourenço - Trabalho e transparência.';
-          requestAnimationFrame(autoFitTextExact);
+        const urlParams = new URLSearchParams(window.location.search);
+        const postParam = urlParams.get('post');
+        const postIdx = parseInt(postParam, 10);
 
-          const videoFile = currentPost.video_file || currentPost.media_file || `video_${postId}.mp4`;
-          player.src = `${videoFile}?_=${cacheBuster}`;
-          player.load();
-          safePlay();
+        let currentPost = posts[0];
+        if (!isNaN(postIdx)) {
+          currentPost = posts.find(p => p.id === postIdx || String(p.id) === String(postIdx)) || posts[postIdx - 1] || posts[0];
+        }
+
+        let texto = currentPost.caption || currentPost.text || '';
+        texto = texto.replace(/\n{3,}/g, '\n\n').trim();
+        if (captionElem) {
+          captionElem.textContent = texto;
+          if (containerElem) {
+            ajustarFonteTexto(containerElem, captionElem);
+            window.addEventListener('resize', () => ajustarFonteTexto(containerElem, captionElem));
+          }
+        }
+
+        const midiaArquivo = currentPost.media || currentPost.media_file || currentPost.video_file;
+        const isFoto = currentPost.type === 'image' || (midiaArquivo && (midiaArquivo.endsWith('.jpg') || midiaArquivo.endsWith('.png')));
+
+        if (isFoto) {
+          if (player) {
+            player.pause();
+            player.style.display = 'none';
+          }
+          if (imagePlayer) {
+            imagePlayer.style.display = 'block';
+            imagePlayer.src = `${midiaArquivo}?t=${timestamp}`;
+          }
+        } else {
+          if (imagePlayer) imagePlayer.style.display = 'none';
+          if (player && videoSource) {
+            player.style.display = 'block';
+            videoSource.src = `${midiaArquivo}?t=${timestamp}`;
+            player.load();
+            player.play().catch(e => console.log('Autoplay:', e));
+          }
         }
       } catch (err) {
-        captionText.innerText = 'Prefeitura de São Lourenço - Trabalho e transparência.';
-        requestAnimationFrame(autoFitTextExact);
-        player.src = `video_${postId}.mp4?_=${cacheBuster}`;
-        player.load();
-        safePlay();
+        console.error(err);
       }
-    }
-
-    window.addEventListener('resize', autoFitTextExact);
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
-    }
+    });
   </script>
 </body>
 </html>
