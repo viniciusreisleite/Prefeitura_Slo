@@ -33,9 +33,9 @@
 
     /* Coluna de Vídeo */
     .video-section {
-      flex: 0 0 35% !important;
-      width: 35% !important;
       height: 100% !important;
+      aspect-ratio: 9 / 16 !important;
+      flex: 0 0 auto !important;
       background: #000 !important;
       border-radius: 26px !important;
       overflow: hidden !important;
@@ -117,7 +117,7 @@
     .logo-img {
       height: clamp(85px, 14vh, 140px);
       max-width: 260px;
-      object-fit: contain;
+      object-fit: cover;
       filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.8));
     }
 
@@ -194,9 +194,9 @@
       box-sizing: border-box !important;
     }
     .video-section {
-      flex: 0 0 35% !important;
-      width: 35% !important;
       height: 100% !important;
+      aspect-ratio: 9 / 16 !important;
+      flex: 0 0 auto !important;
       background: #000 !important;
       border-radius: 26px !important;
       overflow: hidden !important;
@@ -209,9 +209,9 @@
     }
     /* QUANDO FOR VIDEO */
     .tv-container.is-video .video-section {
-      flex: 0 0 35% !important;
-      width: 35% !important;
       height: 100% !important;
+      aspect-ratio: 9 / 16 !important;
+      flex: 0 0 auto !important;
       background: #000 !important;
       border-radius: 26px !important;
       overflow: hidden !important;
@@ -233,9 +233,9 @@
     }
     /* QUANDO FOR IMAGEM */
     .tv-container.is-image .video-section {
-      flex: 0 0 35% !important;
-      width: 35% !important;
       height: 100% !important;
+      aspect-ratio: 9 / 16 !important;
+      flex: 0 0 auto !important;
       background: #000 !important;
       border-radius: 26px !important;
       overflow: hidden !important;
@@ -448,6 +448,7 @@
   </script>
 </body>
 </html>
+
 
 
 
